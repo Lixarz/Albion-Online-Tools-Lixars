@@ -681,8 +681,8 @@ export default function App() {
                       return (
                         <div key={mat.id} className="bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/50 flex flex-col gap-3">
                           <div className="grid grid-cols-12 gap-3 items-end">
-                            <div className="col-span-12 sm:col-span-4 lg:col-span-5">
-                              <label className="block text-xs font-medium text-slate-400 mb-1">{d.matName}</label>
+                            <div className="col-span-10 sm:col-span-4 lg:col-span-4 order-1 sm:order-1">
+                              <label className="block text-xs font-medium text-slate-400 mb-1 truncate">{d.matName}</label>
                               <input 
                                 type="text" 
                                 value={mat.name} 
@@ -690,8 +690,19 @@ export default function App() {
                                 className="w-full bg-slate-900 border border-slate-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
                               />
                             </div>
-                            <div className="col-span-6 sm:col-span-3 lg:col-span-2">
-                              <label className="block text-xs font-medium text-slate-400 mb-1">{d.qtyCraft}</label>
+                            
+                            <div className="col-span-2 sm:col-span-1 lg:col-span-1 order-2 sm:order-5 flex justify-end mb-1 sm:mb-0">
+                              <button 
+                                onClick={() => removeMaterial(mat.id)}
+                                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                title="Remove Material"
+                              >
+                                <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
+
+                            <div className="col-span-4 sm:col-span-2 lg:col-span-2 order-3 sm:order-2">
+                              <label className="block text-xs font-medium text-slate-400 mb-1 truncate">{d.qtyCraft}</label>
                               <input 
                                 type="number" 
                                 min="0.01" step="0.01"
@@ -700,15 +711,16 @@ export default function App() {
                                 className="w-full bg-slate-900 border border-slate-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
                               />
                             </div>
-                            <div className="col-span-6 sm:col-span-4 lg:col-span-4">
-                              <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
+
+                            <div className="col-span-4 sm:col-span-3 lg:col-span-3 order-4 sm:order-3">
+                              <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between truncate">
                                 {d.unitPrice}
-                                {useMatrixPrices && <span className="text-[9px] text-emerald-400 bg-emerald-400/10 px-1 py-0.5 rounded">{d.auto}</span>}
+                                {useMatrixPrices && <span className="text-[9px] text-emerald-400 bg-emerald-400/10 px-1 py-0.5 rounded ml-1">{d.auto}</span>}
                               </label>
                               {useMatrixPrices ? (
                                  <div className="w-full bg-slate-900 border border-emerald-500/50 rounded-md px-3 py-2 flex items-center justify-between">
-                                   <span className="text-emerald-300 text-sm">{currentMatPrice > 0 ? currentMatPrice.toLocaleString() : '0'}</span>
-                                   {bestBuy.city && <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded tracking-wide uppercase">{bestBuy.city}</span>}
+                                   <span className="text-emerald-300 text-sm truncate">{currentMatPrice > 0 ? currentMatPrice.toLocaleString() : '0'}</span>
+                                   {bestBuy.city && <span className="hidden lg:inline text-[8px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded tracking-wide uppercase truncate">{bestBuy.city}</span>}
                                  </div>
                               ) : (
                                  <input 
@@ -720,14 +732,26 @@ export default function App() {
                                 />
                               )}
                             </div>
-                            <div className="col-span-12 sm:col-span-1 lg:col-span-1 flex justify-end">
-                              <button 
-                                onClick={() => removeMaterial(mat.id)}
-                                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors mt-2 sm:mt-0"
-                                title="Remove Material"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+
+                            <div className="col-span-4 sm:col-span-2 lg:col-span-2 order-5 sm:order-4">
+                              <Tooltip text={d.totalSpentDesc}>
+                                <label className="block text-xs font-medium text-slate-400 mb-1 truncate cursor-help border-b border-dashed border-slate-500 inline-block">
+                                  {d.totalSpent}
+                                </label>
+                              </Tooltip>
+                              <input 
+                                type="number" 
+                                min="0"
+                                value={baseQty > 0 && mat.unitPrice ? Math.round((mat.unitPrice * baseQty) * 100) / 100 : ''} 
+                                onChange={(e) => {
+                                  if (baseQty > 0) {
+                                    updateMaterial(mat.id, 'unitPrice', Number(e.target.value) / baseQty);
+                                  }
+                                }}
+                                disabled={useMatrixPrices || baseQty === 0}
+                                className={`w-full bg-slate-900 border border-slate-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all ${useMatrixPrices || baseQty === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                placeholder="0"
+                              />
                             </div>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
