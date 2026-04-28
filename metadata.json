@@ -1,0 +1,6 @@
+{
+  "name": "Albion Crafting Calculator",
+  "description": "Calculate crafting profitability for Albion Online including market taxes, premium status, and Resource Return Rate (RRR).",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
