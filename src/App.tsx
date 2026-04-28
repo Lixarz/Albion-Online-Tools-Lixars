@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Settings, Plus, Trash2, PieChart, Info, DollarSign, Crown, Sword, FlaskConical, Soup, Menu, X, Map, Calculator, Table, Route, Zap, Trash, Download, Upload, Clock, HelpCircle, Languages } from 'lucide-react';
+import { Settings, Plus, Trash2, PieChart, Info, DollarSign, Crown, Sword, FlaskConical, Soup, Menu, X, Map, Calculator, Table, Route, Zap, Trash, Download, Upload, Clock, HelpCircle, Languages, LineChart, History } from 'lucide-react';
 import { t, Language } from './translations';
 
 const CITIES = ['Martlock', 'Lymhurst', 'Bridgewatch', 'Fort Sterling', 'Thetford', 'Caerleon', 'Brecilien'] as const;
@@ -43,11 +43,24 @@ export default function App() {
   const d = t[lang];
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'calculator' | 'matrix'>('calculator');
+  const [activeView, setActiveView] = useState<'calculator' | 'matrix' | 'tracker'>('calculator');
   const [category, setCategory] = useState<Category>(initialState?.category || 'Gear');
   const [isPremium, setIsPremium] = useState(initialState?.isPremium ?? true);
 
-  // Auto-sync feature
+  // Tracker State
+  interface CraftLog {
+    id: string;
+    date: string;
+    itemName: string;
+    category: Category;
+    amount: number;
+    revenue: number;
+    cost: number;
+    profit: number;
+    profitMargin: number;
+  }
+  const [craftLogs, setCraftLogs] = useState<CraftLog[]>(initialState?.craftLogs || []);
+
   const [useMatrixPrices, setUseMatrixPrices] = useState(initialState?.useMatrixPrices ?? false);
 
   // Calculator State
@@ -69,9 +82,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('albion-calc-state', JSON.stringify({
       lang, category, isPremium, useMatrixPrices, itemName, amountToCraft, yieldPerCraft, sellPrice, matrixSellPrices, stationFeeTotal, rrr, materials,
-      feeMode, feePer100, capacityPerCraft, timeMinutes
+      feeMode, feePer100, capacityPerCraft, timeMinutes, craftLogs
     }));
-  }, [lang, category, isPremium, useMatrixPrices, itemName, amountToCraft, yieldPerCraft, sellPrice, matrixSellPrices, stationFeeTotal, rrr, materials, feeMode, feePer100, capacityPerCraft, timeMinutes]);
+  }, [lang, category, isPremium, useMatrixPrices, itemName, amountToCraft, yieldPerCraft, sellPrice, matrixSellPrices, stationFeeTotal, rrr, materials, feeMode, feePer100, capacityPerCraft, timeMinutes, craftLogs]);
 
   const handleClearData = () => {
     if (window.confirm(d.clearConfirm)) {
@@ -82,7 +95,7 @@ export default function App() {
 
   const handleExport = () => {
     const data = {
-      lang, category, isPremium, useMatrixPrices, itemName, amountToCraft, yieldPerCraft, sellPrice, matrixSellPrices, stationFeeTotal, rrr, materials, feeMode, feePer100, capacityPerCraft, timeMinutes
+      lang, category, isPremium, useMatrixPrices, itemName, amountToCraft, yieldPerCraft, sellPrice, matrixSellPrices, stationFeeTotal, rrr, materials, feeMode, feePer100, capacityPerCraft, timeMinutes, craftLogs
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -114,6 +127,7 @@ export default function App() {
           setStationFeeTotal(data.stationFeeTotal || 0);
           setRrr(data.rrr ?? 15.2);
           if (data.materials) setMaterials(data.materials);
+          if (data.craftLogs) setCraftLogs(data.craftLogs);
           setFeeMode(data.feeMode || 'total');
           setFeePer100(data.feePer100 || 0);
           setCapacityPerCraft(data.capacityPerCraft || 0);
@@ -309,6 +323,15 @@ export default function App() {
             <Table className={`w-5 h-5 ${activeView === 'matrix' ? 'text-emerald-200' : 'text-slate-400'}`} />
             <div className="font-medium text-sm">{d.matrixTitle}</div>
           </button>
+          <button
+            onClick={() => { setActiveView('tracker'); setIsSidebarOpen(false); }}
+            className={`flex text-left items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+              activeView === 'tracker' ? 'bg-amber-600 shadow-lg shadow-amber-900/50 text-white' : 'hover:bg-slate-700 text-slate-300'
+            }`}
+          >
+            <LineChart className={`w-5 h-5 ${activeView === 'tracker' ? 'text-amber-200' : 'text-slate-400'}`} />
+            <div className="font-medium text-sm">{d.tracker}</div>
+          </button>
         </div>
 
         <div className="flex justify-between items-center mb-2 px-2">
@@ -392,12 +415,14 @@ export default function App() {
           {/* HEADER */}
           <header className="mb-4">
             <h1 className="text-3xl font-bold text-white mb-2">
-              {activeView === 'calculator' ? `${d.categories[category]} ${d.calcTitle.split(' ')[0]}` : d.matrixTitle}
+              {activeView === 'calculator' ? `${d.categories[category]} ${d.calcTitle.split(' ')[0]}` 
+               : activeView === 'matrix' ? d.matrixTitle 
+               : d.tracker}
             </h1>
             <p className="text-slate-400">
-              {activeView === 'calculator' 
-                ? d.calcDesc
-                : d.matrixDesc}
+              {activeView === 'calculator' ? d.calcDesc
+                : activeView === 'matrix' ? d.matrixDesc
+                : d.trackerSummary}
             </p>
           </header>
 
@@ -706,16 +731,31 @@ export default function App() {
                             </div>
                           </div>
                           <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
-                            <Tooltip text={d.totalNeededDesc}>
-                              <div className="flex items-center gap-1.5 cursor-help group-hover:text-indigo-400 transition-colors">
-                                <span className="text-xs font-medium text-slate-400">{d.totalNeeded}:</span>
-                                <span className="text-sm font-bold text-slate-200">{netQty.toLocaleString()}</span>
-                                <span className="text-[10px] text-slate-500">pcs</span>
-                                <HelpCircle className="w-3 h-3 text-slate-500" />
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full justify-between">
+                              <div className="flex items-center gap-4">
+                                <Tooltip text={d.upfrontNeededDesc}>
+                                  <div className="flex items-center gap-1.5 cursor-help">
+                                    <span className="text-xs font-medium text-slate-400">{d.upfrontNeeded}:</span>
+                                    <span className="text-sm font-bold text-slate-200">{baseQty.toLocaleString()}</span>
+                                    <span className="text-[10px] text-slate-500">pcs</span>
+                                    <HelpCircle className="w-3 h-3 text-slate-500" />
+                                  </div>
+                                </Tooltip>
+                                
+                                <div className="hidden sm:block w-px h-4 bg-slate-700"></div>
+
+                                <Tooltip text={d.netNeededDesc}>
+                                  <div className="flex items-center gap-1.5 cursor-help text-indigo-200/80">
+                                    <span className="text-xs font-medium">{d.netNeeded}:</span>
+                                    <span className="text-sm font-bold text-indigo-400">{netQty.toLocaleString()}</span>
+                                    <span className="text-[10px] text-indigo-400/50">pcs</span>
+                                    <HelpCircle className="w-3 h-3 text-indigo-400/50" />
+                                  </div>
+                                </Tooltip>
                               </div>
-                            </Tooltip>
-                            <div className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
-                              Cost: <span className="text-sm font-bold text-slate-200">{formatNumberCompact(netCost)}</span> <DollarSign className="w-3 h-3 text-slate-500" />
+                              <div className="text-xs font-medium text-slate-400 flex items-center gap-1.5 self-end sm:self-auto">
+                                Cost: <span className="text-sm font-bold text-slate-200">{formatNumberCompact(netCost)}</span> <DollarSign className="w-3 h-3 text-slate-500" />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -910,11 +950,138 @@ export default function App() {
                       </p>
                     </div>
                   </div>
+
+                  <div className="mt-1 pt-4 border-t border-slate-700/50">
+                    <button 
+                      onClick={() => {
+                        if (!itemName) {
+                          alert('Please enter an Item Name before saving to tracker.');
+                          return;
+                        }
+                        const newLog: CraftLog = {
+                          id: crypto.randomUUID(),
+                          date: new Date().toISOString(),
+                          itemName,
+                          category,
+                          amount: amountToCraft,
+                          revenue: calculations.netRevenue,
+                          cost: calculations.totalCost,
+                          profit: calculations.netProfit,
+                          profitMargin: calculations.profitMargin
+                        };
+                        setCraftLogs([newLog, ...craftLogs]);
+                        alert(d.trackerSuccess);
+                      }}
+                      className="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-lg"
+                    >
+                      <LineChart className="w-4 h-4 text-emerald-400" />
+                      {d.addToTracker}
+                    </button>
+                  </div>
                 </div>
               </div>
 
             </div>
           )}
+
+          {activeView === 'tracker' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-2xl">
+                  <div className="text-slate-400 text-sm font-medium mb-1">{d.totalProfit}</div>
+                  <div className={`text-2xl font-bold ${craftLogs.reduce((acc, log) => acc + log.profit, 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {formatNumberCompact(craftLogs.reduce((acc, log) => acc + log.profit, 0))}
+                  </div>
+                </div>
+                <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-2xl">
+                  <div className="text-slate-400 text-sm font-medium mb-1">{d.totalRevenue}</div>
+                  <div className="text-2xl font-bold text-indigo-400">
+                    {formatNumberCompact(craftLogs.reduce((acc, log) => acc + log.revenue, 0))}
+                  </div>
+                </div>
+                <div className="bg-slate-800/80 border border-slate-700 p-5 rounded-2xl">
+                  <div className="text-slate-400 text-sm font-medium mb-1">{d.totalCost}</div>
+                  <div className="text-2xl font-bold text-amber-400">
+                    {formatNumberCompact(craftLogs.reduce((acc, log) => acc + log.cost, 0))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/80 border border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <History className="w-5 h-5 text-indigo-400" />
+                    <h2 className="text-lg font-semibold text-white">{d.craftingLog}</h2>
+                  </div>
+                  {craftLogs.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        if (window.confirm('Clear all tracker history?')) setCraftLogs([]);
+                      }}
+                      className="text-xs flex items-center gap-1.5 text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      {d.clearHistory}
+                    </button>
+                  )}
+                </div>
+                
+                {craftLogs.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500">
+                    {d.emptyHistory}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-slate-300">
+                      <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700/50">
+                        <tr>
+                          <th className="px-5 py-3 font-medium">{d.date}</th>
+                          <th className="px-5 py-3 font-medium">{d.item}</th>
+                          <th className="px-5 py-3 font-medium">{d.amount}</th>
+                          <th className="px-5 py-3 font-medium">{d.profit}</th>
+                          <th className="px-5 py-3 font-medium text-right">{d.action}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/50">
+                        {craftLogs.map(log => (
+                          <tr key={log.id} className="hover:bg-slate-700/20 transition-colors">
+                            <td className="px-5 py-4 whitespace-nowrap text-slate-400">
+                              {new Date(log.date).toLocaleDateString()} {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="font-medium text-white">{log.itemName}</div>
+                              <div className="text-[10px] text-slate-500 uppercase mt-0.5">{d.categories[log.category as Category] || log.category}</div>
+                            </td>
+                            <td className="px-5 py-4 font-medium">
+                              {log.amount.toLocaleString()}
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className={`font-semibold ${log.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {log.profit > 0 ? '+' : ''}{formatNumberCompact(log.profit)}
+                                <span className="text-xs ml-1.5 opacity-70 font-normal">
+                                  ({log.profitMargin.toFixed(1)}%)
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <button 
+                                onClick={() => setCraftLogs(craftLogs.filter(l => l.id !== log.id))}
+                                className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                                title="Delete Log"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
